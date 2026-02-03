@@ -90,6 +90,21 @@ def test_cli_createrole(app):
     assert result.exit_code == 0
 
 
+def test_cli_createrole_idempotent(app):
+    """Test that creating a role is idempotent."""
+    runner = app.test_cli_runner()
+
+    # Create role first time
+    result = runner.invoke(roles_create, ["admin", "-d", "Administrator role"])
+    assert result.exit_code == 0
+    assert 'Role "admin" created successfully.' in result.output
+
+    # Create same role again - should succeed and report it already exists
+    result = runner.invoke(roles_create, ["admin", "-d", "Administrator role"])
+    assert result.exit_code == 0
+    assert 'Role "admin" already exists.' in result.output
+
+
 def test_cli_addremove_role(app):
     """Test add/remove role."""
     runner = app.test_cli_runner()
@@ -125,11 +140,33 @@ def test_cli_addremove_role(app):
     result = runner.invoke(roles_add, ["a@test.org", "superuser"])
     assert result.exit_code == 0
     result = runner.invoke(roles_add, ["a@test.org", "superuser"])
-    assert result.exit_code != 0
+    assert result.exit_code == 0
+    assert "already has role" in result.output
 
     # Remove:
     result = runner.invoke(roles_remove, ["a@test.org", "superuser"])
     assert result.exit_code == 0
+
+
+def test_cli_roles_add_idempotent(app):
+    """Test that adding a role to a user is idempotent."""
+    runner = app.test_cli_runner()
+
+    # Create a user and a role
+    result = runner.invoke(users_create, ["test@example.org", "--password", "123456"])
+    assert result.exit_code == 0
+    result = runner.invoke(roles_create, ["admin", "-d", "Administrator"])
+    assert result.exit_code == 0
+
+    # Add role first time
+    result = runner.invoke(roles_add, ["test@example.org", "admin"])
+    assert result.exit_code == 0
+    assert "added to user" in result.output
+
+    # Add same role again - should succeed and report it already exists
+    result = runner.invoke(roles_add, ["test@example.org", "admin"])
+    assert result.exit_code == 0
+    assert "already has role" in result.output
 
 
 def test_cli_activate_deactivate(app):

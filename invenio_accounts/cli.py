@@ -90,15 +90,12 @@ def users_create(email, password, active, confirm, profile):
 @commit
 def roles_create(**kwargs):
     """Create a role."""
-    try:
+    existing_role = _datastore.find_role(kwargs["name"])
+    if existing_role:
+        click.secho('Role "%(name)s" already exists.' % kwargs, fg="green")
+    else:
         _datastore.create_role(id=kwargs["name"], **kwargs)
         click.secho('Role "%(name)s" created successfully.' % kwargs, fg="green")
-    except UniqueViolation:
-        db.session.rollback()
-        click.secho('Role "%(name)s" already existed.' % kwargs, fg="green")
-    except Exception:
-        db.session.rollback()
-        click.secho('Role "%(name)s" already existed.' % kwargs, fg="green")
 
 
 @roles.command("add")
@@ -120,7 +117,10 @@ def roles_add(user, role):
             fg="green",
         )
     else:
-        raise click.secho("User already associated to role.", fg="green")
+        click.secho(
+            f"User '{user}' already has role '{role}'.",
+            fg="green",
+        )
 
 
 @roles.command("remove")
@@ -137,7 +137,7 @@ def roles_remove(user, role):
         raise click.UsageError("Cannot find role.")
     if _datastore.remove_role_from_user(user, role):
         click.secho(
-            'Role "{0}" removed from user "{1}" ' "successfully.".format(role, user),
+            f'Role "{role}" removed from user "{user}" successfully.',
             fg="green",
         )
     else:
